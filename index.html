@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Bioinstrumental de la Sentadilla</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- MediaPipe Pose y Chart.js vía CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="container">
+            <h1>Análisis Bioinstrumental de la Sentadilla</h1>
+            <p class="subtitle">Evaluación cuantitativa del movimiento mediante análisis de video</p>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- 1. INFORMACIÓN DEL ANÁLISIS -->
+        <section class="card">
+            <h2>1. Información del Análisis</h2>
+            <p><strong>Asignatura:</strong> Análisis Bioinstrumental del Movimiento Humano</p>
+            <p><strong>Carrera:</strong> Kinesiología — Universidad de Chile</p>
+            <p><strong>Gesto Motor Evaluado:</strong> Sentadilla Bilateral (Fase de descenso y ascenso)</p>
+            <p><strong>Metodología:</strong> Extracción cinematica bidimensional (2D) basada en visión computacional y estimación de pose en tiempo real mediante MediaPipe Pose.</p>
+        </section>
+
+        <!-- 2. PROBLEMÁTICA Y OBJETIVO -->
+        <section class="card">
+            <h2>2. Problemática y Objetivo</h2>
+            <p><strong>Problemática:</strong> La evaluación observacional subjetiva de la sentadilla presenta una alta variabilidad inter e intraevaluador. Se requiere complementar el juicio clínico con datos cuantitativos objetivos y reproducibles sin depender de laboratorios de marcha costosos o marcadores reflectantes.</p>
+            <p><strong>Objetivo:</strong> Cuantificar objetivamente la biomecánica de la sentadilla bilateral en el plano sagital (flexión de rodilla) y plano frontal (índice de separación rodillas/tobillos) a partir de grabaciones de video reales de perfil y de frente.</p>
+        </section>
+
+        <!-- 3. RECOMENDACIONES DE GRABACIÓN -->
+        <section class="card info-box">
+            <h2>3. Recomendaciones de Grabación</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>Vista Lateral (Plano Sagital)</h3>
+                    <ul>
+                        <li>Cámara fija ubicada perpendicular al plano sagital de la persona.</li>
+                        <li>Cuerpo completo visible durante todo el recorrido (hip, knee, ankle).</li>
+                        <li>Iluminación uniforme y ropa ajustada (evitar prendas muy holgadas).</li>
+                        <li>Ejecución de una sentadilla continua a velocidad constante.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Vista Frontal (Plano Frontal)</h3>
+                    <ul>
+                        <li>Cámara centrada exactamente frente al participante, a la altura de la pelvis.</li>
+                        <li>Ambas extremidades inferiores completamente visibles (rodillas y tobillos).</li>
+                        <li>Pies paralelos o con leve rotación externa habitual, sin tapar los tobillos.</li>
+                        <li>Trípode o superficie estable para evitar oscilaciones de cámara.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="main-controls">
+            <button id="btnResetAll" class="btn btn-secondary">Reiniciar Todo el Análisis</button>
+        </div>
+
+        <!-- SECCIÓN VISTA LATERAL -->
+        <div class="plane-container">
+            <header class="plane-header">
+                <h2>Análisis Plano Sagital (Vista Lateral)</h2>
+            </header>
+
+            <!-- 4. VIDEO LATERAL -->
+            <section class="card">
+                <h2>4. Carga y Procesamiento del Video Lateral</h2>
+                <div class="upload-zone">
+                    <label for="inputVideoLateral" class="file-label">Seleccionar Video Lateral (MP4, WebM, MOV)</label>
+                    <input type="file" id="inputVideoLateral" accept="video/mp4,video/webm,video/quicktime">
+                    <span id="fileNameLateral" class="file-name">Ningún archivo seleccionado</span>
+                </div>
+
+                <div class="side-selector">
+                    <label for="selectSide">Lado a analizar:</label>
+                    <select id="selectSide">
+                        <option value="auto">Detección Automática (Mayor Confianza)</option>
+                        <option value="right">Lado Derecho</option>
+                        <option value="left">Lado Izquierdo</option>
+                    </select>
+                </div>
+
+                <div class="video-preview-container">
+                    <video id="videoLateral" controls playsinline></video>
+                    <canvas id="canvasLateralOverlay"></canvas>
+                </div>
+
+                <div class="actions">
+                    <button id="btnAnalyzeLateral" class="btn btn-primary" disabled>Analizar Video Lateral</button>
+                </div>
+
+                <div id="progressLateralContainer" class="progress-container hidden">
+                    <p id="statusLateral">Analizando movimiento...</p>
+                    <div class="progress-bar-bg">
+                        <div id="progressBarLateral" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. RESULTADOS DEL ANÁLISIS LATERAL -->
+            <section class="card">
+                <h2>5. Resultados del Análisis Lateral</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-value" id="valMaxFlexion">-- °</span>
+                        <span class="metric-label">Flexión Máxima de Rodilla</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valTimeMaxFlexion">-- s</span>
+                        <span class="metric-label">Tiempo de Máxima Flexión</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valDurationLateral">-- s</span>
+                        <span class="metric-label">Duración Total Analizada</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valValidFramesLateral">--</span>
+                        <span class="metric-label">Frames Válidos (%)</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. GRÁFICO LATERAL -->
+            <section class="card">
+                <h2>6. Gráfico de Flexión de Rodilla en el Tiempo</h2>
+                <div class="chart-wrapper">
+                    <canvas id="chartLateral"></canvas>
+                </div>
+            </section>
+
+            <!-- 7. FRAME DE MÁXIMA FLEXIÓN -->
+            <section class="card">
+                <h2>7. Frame Representativo de Máxima Flexión</h2>
+                <div class="snapshot-container">
+                    <canvas id="canvasLateralSnapshot"></canvas>
+                    <p id="snapshotLateralCaption" class="caption">El frame representativo se generará al finalizar el análisis.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- SECCIÓN VISTA FRONTAL -->
+        <div class="plane-container">
+            <header class="plane-header">
+                <h2>Análisis Plano Frontal (Vista Frontal)</h2>
+            </header>
+
+            <!-- 8. VIDEO FRONTAL -->
+            <section class="card">
+                <h2>8. Carga y Procesamiento del Video Frontal</h2>
+                <div class="upload-zone">
+                    <label for="inputVideoFrontal" class="file-label">Seleccionar Video Frontal (MP4, WebM, MOV)</label>
+                    <input type="file" id="inputVideoFrontal" accept="video/mp4,video/webm,video/quicktime">
+                    <span id="fileNameFrontal" class="file-name">Ningún archivo seleccionado</span>
+                </div>
+
+                <div class="video-preview-container">
+                    <video id="videoFrontal" controls playsinline></video>
+                    <canvas id="canvasFrontalOverlay"></canvas>
+                </div>
+
+                <div class="actions">
+                    <button id="btnAnalyzeFrontal" class="btn btn-primary" disabled>Analizar Video Frontal</button>
+                </div>
+
+                <div id="progressFrontalContainer" class="progress-container hidden">
+                    <p id="statusFrontal">Analizando movimiento...</p>
+                    <div class="progress-bar-bg">
+                        <div id="progressBarFrontal" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. RESULTADOS DEL ANÁLISIS FRONTAL -->
+            <section class="card">
+                <h2>9. Resultados del Análisis Frontal</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-value" id="valMinIndex">--</span>
+                        <span class="metric-label">Índice Mínimo Rodillas/Tobillos</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valTimeMinIndex">-- s</span>
+                        <span class="metric-label">Tiempo del Índice Mínimo</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valInitialIndex">--</span>
+                        <span class="metric-label">Índice Inicial (Bipedestación)</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="valValidFramesFrontal">--</span>
+                        <span class="metric-label">Frames Válidos (%)</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 10. GRÁFICO FRONTAL -->
+            <section class="card">
+                <h2>10. Gráfico del Índice Rodillas/Tobillos</h2>
+                <div class="chart-wrapper">
+                    <canvas id="chartFrontal"></canvas>
+                </div>
+            </section>
+
+            <!-- 11. FRAME REPRESENTATIVO FRONTAL -->
+            <section class="card">
+                <h2>11. Frame Representativo de Índice Mínimo</h2>
+                <div class="snapshot-container">
+                    <canvas id="canvasFrontalSnapshot"></canvas>
+                    <p id="snapshotFrontalCaption" class="caption">El frame representativo se generará al finalizar el análisis.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- 12. INTERPRETACIÓN DE RESULTADOS -->
+        <section class="card interpretation-card">
+            <h2>12. Interpretación Descriptiva de Resultados</h2>
+            <div id="interpretationTextLateral" class="interpretation-box">
+                <p><em>Pendiente de análisis lateral...</em></p>
+            </div>
+            <div id="interpretationTextFrontal" class="interpretation-box">
+                <p><em>Pendiente de análisis frontal...</em></p>
+            </div>
+        </section>
+
+        <!-- 13. LIMITACIONES -->
+        <section class="card warning-card">
+            <h2>13. Limitaciones del Análisis Bioinstrumental 2D</h2>
+            <ul>
+                <li><strong>Análisis Plano 2D:</strong> Las imágenes sufren distorsión de perspectiva y paralelaje. Los ángulos proyectados dependen estrictamente del ángulo relativo de la cámara.</li>
+                <li><strong>Oclusión de Puntos:</strong> Ropa holgada, sombras o extremidades superpuestas pueden disminuir la confianza de detección de MediaPipe.</li>
+                <li><strong>Ausencia de Rotación 3D:</strong> El índice frontal mide la distancia proyectada en la pantalla, no la rotación interna femoral ni la pronación del pie de forma triaxial.</li>
+                <li><strong>Propósito Académico:</strong> Esta aplicación es una herramienta cuantitativa de apoyo docente y no constituye un sistema diagnóstico clínico ni reemplaza la evaluación profesional Kinesiológica.</li>
+            </ul>
+        </section>
+
+    </main>
+
+    <footer class="app-footer">
+        <p>Universidad de Chile — Facultad de Medicina — Carrera de Kinesiología</p>
+        <p>Asignatura: Análisis Bioinstrumental del Movimiento Humano</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+  </html>
+  
